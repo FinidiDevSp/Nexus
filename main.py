@@ -275,12 +275,12 @@ class NexusAssistant:
                     comando = self._listen()
                 self._process(comando)
 
-
 if __name__ == "__main__":
-    asistente = NexusAssistant()
-    try:
-        asistente.run()
-    finally:
-        asistente._save_memory()
-        asistente._save_notes()
+    from PySide6.QtWidgets import QApplication
+    from gui.app import ChatWindow
+
+    app = QApplication(sys.argv)
+    window = ChatWindow()
+    window.show()
+    sys.exit(app.exec())
 
