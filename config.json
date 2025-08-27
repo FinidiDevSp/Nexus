@@ -1,4 +1,13 @@
 {
   "palabra_clave": "nexus",
-  "hotkey": "ctrl+shift+space"
+  "hotkey": "ctrl+shift+space",
+  "reconocimiento_facial": false,
+  "modo_silencio": false,
+  "escenarios": {
+    "modo de trabajo": [
+      "code",
+      "notepad",
+      "chrome https://www.google.com https://www.notion.so"
+    ]
+  }
 }

@@ -24,6 +24,10 @@ def register(assistant):
         lambda text: (assistant._say("Apagando el ordenador."), assistant._shutdown()),
     )
     assistant.register_command(
+        "hiberna",
+        lambda text: (assistant._say("Hibernando el ordenador."), assistant._hibernate()),
+    )
+    assistant.register_command(
         "salir",
         lambda text: (
             assistant._say("Hasta luego."),
@@ -39,4 +43,12 @@ def register(assistant):
     assistant.register_command(
         "modo encendido",
         lambda text: (setattr(assistant, "active", True), assistant._say("Modo encendido.")),
+    )
+    assistant.register_command(
+        "modo silencio",
+        lambda text: (assistant._say("Modo silencio activado."), setattr(assistant, "silence", True)),
+    )
+    assistant.register_command(
+        "modo voz",
+        lambda text: (setattr(assistant, "silence", False), assistant._say("Modo voz activado.")),
     )

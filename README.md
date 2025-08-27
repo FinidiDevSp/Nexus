@@ -9,12 +9,24 @@ El archivo `config.json` en la raíz del proyecto define los ajustes básicos:
 ```json
 {
   "palabra_clave": "nexus",
-  "hotkey": "ctrl+shift+space"
+  "hotkey": "ctrl+shift+space",
+  "reconocimiento_facial": false,
+  "modo_silencio": false,
+  "escenarios": {
+    "modo de trabajo": [
+      "code",
+      "notepad",
+      "chrome https://www.google.com https://www.notion.so"
+    ]
+  }
 }
 ```
 
 - `palabra_clave`: palabra necesaria para activar el asistente mediante voz.
 - `hotkey`: combinación de teclas para activar el asistente manualmente.
+- `reconocimiento_facial`: si está activo, se pedirá confirmación antes de iniciar.
+- `modo_silencio`: inicia sin salida de voz.
+- `escenarios`: conjuntos de programas que pueden abrirse con el comando "abre <nombre>".
 
 ## Plugins
 
@@ -35,3 +47,12 @@ def register(assistant):
 ```
 
 Los módulos se importan automáticamente al iniciar el programa.
+
+## Integraciones y comandos
+
+- **Escenarios**: define conjuntos de programas en `config.json` y actívalos con `abre <escenario>`.
+- **Hibernación**: di `hiberna` para suspender el equipo.
+- **Modo silencio**: `modo silencio` desactiva la voz y `modo voz` la reactiva.
+- **Notion**: `crea nota <texto>` crea una nota en Notion (requiere `NOTION_TOKEN` y `NOTION_DATABASE_ID`).
+- **Google Calendar**: `reuniones de hoy` muestra los eventos del día (requiere `GOOGLE_CALENDAR_TOKEN`).
+- **Gmail**: `envia correo a <email> <mensaje>` envía un correo mediante Gmail (requiere `GMAIL_USER` y `GMAIL_PASS`).
