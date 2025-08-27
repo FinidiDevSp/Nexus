@@ -13,7 +13,7 @@ def register(assistant):
                         subprocess.Popen(cmd, shell=True)
                     except Exception:
                         pass
-                assistant._say(f"Escenario {nombre} abierto.")
+                assistant.speak(f"Escenario {nombre} abierto.")
             return handler
         assistant.register_command(
             f"abre {nombre}",

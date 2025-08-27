@@ -17,6 +17,8 @@ import threading
 import time
 from datetime import datetime
 
+from assistant.core import process_text, speak
+
 CONFIG_FILE = "config.json"
 MEMORY_FILE = "memory.json"
 NOTES_FILE = "notes.json"
@@ -57,11 +59,9 @@ class NexusAssistant:
                 module.register(self)
 
     # Utilidades -----------------------------------------------------------------
-    def _say(self, text: str) -> None:
-        print(f"Nexus: {text}")
-        if not getattr(self, "silence", False):
-            self.tts.say(text)
-            self.tts.runAndWait()
+    def speak(self, text: str, callback=None) -> None:
+        """Wrapper around :func:`assistant.core.speak`."""
+        speak(self, text, callback)
 
     def _load_memory(self) -> list:
         if os.path.exists(MEMORY_FILE):
@@ -87,7 +87,7 @@ class NexusAssistant:
     def _chatgpt(self, text: str) -> None:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            self._say("No hay clave de API configurada.")
+            self.speak("No hay clave de API configurada.")
             return
         openai.api_key = api_key
         self.memory.append({"role": "user", "content": text})
@@ -96,22 +96,22 @@ class NexusAssistant:
                 model="gpt-3.5-turbo", messages=self.memory
             )
             reply = response.choices[0].message["content"]
-            self._say(reply)
+            self.speak(reply)
             self.memory.append({"role": "assistant", "content": reply})
         except Exception:
-            self._say("Error al contactar con GPT.")
+            self.speak("Error al contactar con GPT.")
 
     def _google_search(self, query: str) -> None:
         webbrowser.open(f"https://www.google.com/search?q={quote_plus(query)}")
-        self._say("Buscando en Google.")
+        self.speak("Buscando en Google.")
 
     def _open_youtube(self) -> None:
         webbrowser.open("https://www.youtube.com")
-        self._say("Abriendo YouTube.")
+        self.speak("Abriendo YouTube.")
 
     def _open_spotify(self) -> None:
         webbrowser.open("https://open.spotify.com")
-        self._say("Abriendo Spotify.")
+        self.speak("Abriendo Spotify.")
 
     def _adjust_volume(self, up: bool = True) -> None:
         sistema = platform.system()
@@ -129,46 +129,46 @@ class NexusAssistant:
         now = datetime.now()
         fecha = now.strftime("%d/%m/%Y")
         hora = now.strftime("%H:%M")
-        self._say(f"Hoy es {fecha} y son las {hora}.")
+        self.speak(f"Hoy es {fecha} y son las {hora}.")
 
     def _manage_files(self, text: str) -> None:
         if "crea archivo" in text:
             nombre = text.split("crea archivo", 1)[1].strip()
             open(nombre, "w").close()
-            self._say(f"Archivo {nombre} creado.")
+            self.speak(f"Archivo {nombre} creado.")
         elif "borra archivo" in text:
             nombre = text.split("borra archivo", 1)[1].strip()
             try:
                 os.remove(nombre)
-                self._say(f"Archivo {nombre} borrado.")
+                self.speak(f"Archivo {nombre} borrado.")
             except FileNotFoundError:
-                self._say("Archivo no encontrado.")
+                self.speak("Archivo no encontrado.")
 
     def _add_note(self, note: str) -> None:
         if note:
             self.notes.append(note)
-            self._say("Nota guardada.")
+            self.speak("Nota guardada.")
         else:
-            self._say("No se proporcionó el contenido de la nota.")
+            self.speak("No se proporcionó el contenido de la nota.")
 
     def _list_notes(self) -> None:
         if not self.notes:
-            self._say("No hay notas guardadas.")
+            self.speak("No hay notas guardadas.")
             return
         for idx, note in enumerate(self.notes, start=1):
-            self._say(f"Nota {idx}: {note}")
+            self.speak(f"Nota {idx}: {note}")
 
     def _remove_note(self, index: int) -> None:
         if 0 <= index < len(self.notes):
             nota = self.notes.pop(index)
-            self._say(f"Nota '{nota}' borrada.")
+            self.speak(f"Nota '{nota}' borrada.")
         else:
-            self._say("Número de nota inválido.")
+            self.speak("Número de nota inválido.")
 
     def _get_weather(self, ciudad: str) -> None:
         api_key = os.getenv("OPENWEATHER_API_KEY")
         if not api_key:
-            self._say("No hay clave de API de OpenWeather configurada.")
+            self.speak("No hay clave de API de OpenWeather configurada.")
             return
         try:
             resp = requests.get(
@@ -177,14 +177,14 @@ class NexusAssistant:
                 timeout=10,
             )
             if resp.status_code != 200:
-                self._say("No se pudo obtener el clima.")
+                self.speak("No se pudo obtener el clima.")
                 return
             data = resp.json()
             desc = data["weather"][0]["description"]
             temp = data["main"]["temp"]
-            self._say(f"El clima en {ciudad} es {desc} con {temp}°C.")
+            self.speak(f"El clima en {ciudad} es {desc} con {temp}°C.")
         except Exception:
-            self._say("Error al consultar el clima.")
+            self.speak("Error al consultar el clima.")
 
     def _turn_off_screen(self) -> None:
         sistema = platform.system()
@@ -205,7 +205,7 @@ class NexusAssistant:
             os.system("pmset sleepnow")
 
     def _confirm_face(self) -> bool:
-        self._say("Confirmación de rostro requerida.")
+        self.speak("Confirmación de rostro requerida.")
         resp = input("¿Rostro reconocido? (si/no): ").strip().lower()
         return resp == "si"
 
@@ -219,7 +219,7 @@ class NexusAssistant:
     def _set_timer(self, segundos: int) -> None:
         def tarea() -> None:
             time.sleep(segundos)
-            self._say("Temporizador finalizado.")
+            self.speak("Temporizador finalizado.")
             try:
                 self.timers.remove(threading.current_thread())
             except ValueError:
@@ -230,15 +230,8 @@ class NexusAssistant:
         hilo.start()
 
     # Lógica principal ------------------------------------------------------------
-    def _process(self, text: str) -> None:
-        for trigger, (action, mode) in self.commands.items():
-            if mode == "startswith" and text.startswith(trigger):
-                action(text)
-                return
-            if mode == "in" and trigger in text:
-                action(text)
-                return
-        self._chatgpt(text)
+    def process_text(self, text: str) -> None:
+        process_text(self, text)
 
 if __name__ == "__main__":
     from PySide6.QtWidgets import QApplication

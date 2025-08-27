@@ -21,16 +21,16 @@ def register(assistant):
     )
     assistant.register_command(
         "apaga",
-        lambda text: (assistant._say("Apagando el ordenador."), assistant._shutdown()),
+        lambda text: (assistant.speak("Apagando el ordenador."), assistant._shutdown()),
     )
     assistant.register_command(
         "hiberna",
-        lambda text: (assistant._say("Hibernando el ordenador."), assistant._hibernate()),
+        lambda text: (assistant.speak("Hibernando el ordenador."), assistant._hibernate()),
     )
     assistant.register_command(
         "salir",
         lambda text: (
-            assistant._say("Hasta luego."),
+            assistant.speak("Hasta luego."),
             assistant._save_memory(),
             assistant._save_notes(),
             sys.exit(0),
@@ -38,17 +38,17 @@ def register(assistant):
     )
     assistant.register_command(
         "modo apagado",
-        lambda text: (setattr(assistant, "active", False), assistant._say("Modo apagado.")),
+        lambda text: (setattr(assistant, "active", False), assistant.speak("Modo apagado.")),
     )
     assistant.register_command(
         "modo encendido",
-        lambda text: (setattr(assistant, "active", True), assistant._say("Modo encendido.")),
+        lambda text: (setattr(assistant, "active", True), assistant.speak("Modo encendido.")),
     )
     assistant.register_command(
         "modo silencio",
-        lambda text: (assistant._say("Modo silencio activado."), setattr(assistant, "silence", True)),
+        lambda text: (assistant.speak("Modo silencio activado."), setattr(assistant, "silence", True)),
     )
     assistant.register_command(
         "modo voz",
-        lambda text: (setattr(assistant, "silence", False), assistant._say("Modo voz activado.")),
+        lambda text: (setattr(assistant, "silence", False), assistant.speak("Modo voz activado.")),
     )
