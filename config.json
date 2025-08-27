@@ -12,5 +12,13 @@
       "notepad",
       "chrome https://www.google.com https://www.notion.so"
     ]
-  }
+  },
+  "openai_api_key": "",
+  "openweather_api_key": "",
+  "notion_token": "",
+  "notion_database_id": "",
+  "google_calendar_token": "",
+  "google_calendar_id": "",
+  "gmail_user": "",
+  "gmail_pass": ""
 }

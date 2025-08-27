@@ -21,7 +21,15 @@ El archivo `config.json` en la raíz del proyecto define los ajustes básicos:
       "notepad",
       "chrome https://www.google.com https://www.notion.so"
     ]
-  }
+  },
+  "openai_api_key": "",
+  "openweather_api_key": "",
+  "notion_token": "",
+  "notion_database_id": "",
+  "google_calendar_token": "",
+  "google_calendar_id": "",
+  "gmail_user": "",
+  "gmail_pass": ""
 }
 ```
 
@@ -33,6 +41,11 @@ El archivo `config.json` en la raíz del proyecto define los ajustes básicos:
 - `avatar_usuario`: imagen utilizada para los mensajes del usuario.
 - `avatar_asistente`: imagen mostrada en las respuestas del asistente.
 - `escenarios`: conjuntos de programas que pueden abrirse con el comando "abre <nombre>".
+- `openai_api_key`: clave para usar la API de OpenAI.
+- `openweather_api_key`: clave para consultar el clima.
+- `notion_token` y `notion_database_id`: credenciales para Notion.
+- `google_calendar_token` y `google_calendar_id`: credenciales para Google Calendar.
+- `gmail_user` y `gmail_pass`: credenciales de Gmail.
 
 ## Plugins
 
@@ -59,9 +72,9 @@ Los módulos se importan automáticamente al iniciar el programa.
 - **Escenarios**: define conjuntos de programas en `config.json` y actívalos con `abre <escenario>`.
 - **Hibernación**: di `hiberna` para suspender el equipo.
 - **Modo silencio**: `modo silencio` desactiva la voz y `modo voz` la reactiva.
-- **Notion**: `crea nota <texto>` crea una nota en Notion (requiere `NOTION_TOKEN` y `NOTION_DATABASE_ID`).
-- **Google Calendar**: `reuniones de hoy` muestra los eventos del día (requiere `GOOGLE_CALENDAR_TOKEN`).
-- **Gmail**: `envia correo a <email> <mensaje>` envía un correo mediante Gmail (requiere `GMAIL_USER` y `GMAIL_PASS`).
+- **Notion**: `crea nota <texto>` crea una nota en Notion (requiere `notion_token` y `notion_database_id` en `config.json`).
+- **Google Calendar**: `reuniones de hoy` muestra los eventos del día (requiere `google_calendar_token` y opcional `google_calendar_id` en `config.json`).
+- **Gmail**: `envia correo a <email> <mensaje>` envía un correo mediante Gmail (requiere `gmail_user` y `gmail_pass` en `config.json`).
 
 ## Distribución en Windows
 

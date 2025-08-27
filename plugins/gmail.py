@@ -12,8 +12,8 @@ def register(assistant):
             assistant.speak("Formato: envia correo a correo@dominio.com mensaje")
             return
         destino, mensaje = resto.split(" ", 1)
-        user = os.getenv("GMAIL_USER")
-        password = os.getenv("GMAIL_PASS")
+        user = assistant.config.get("gmail_user") or os.getenv("GMAIL_USER")
+        password = assistant.config.get("gmail_pass") or os.getenv("GMAIL_PASS")
         if not user or not password:
             assistant.speak("Faltan credenciales de Gmail.")
             return

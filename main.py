@@ -85,7 +85,7 @@ class NexusAssistant:
 
     # Acciones -------------------------------------------------------------------
     def _chatgpt(self, text: str) -> None:
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = self.config.get("openai_api_key") or os.getenv("OPENAI_API_KEY")
         if not api_key:
             self.speak("No hay clave de API configurada.")
             return
@@ -166,7 +166,7 @@ class NexusAssistant:
             self.speak("Número de nota inválido.")
 
     def _get_weather(self, ciudad: str) -> None:
-        api_key = os.getenv("OPENWEATHER_API_KEY")
+        api_key = self.config.get("openweather_api_key") or os.getenv("OPENWEATHER_API_KEY")
         if not api_key:
             self.speak("No hay clave de API de OpenWeather configurada.")
             return

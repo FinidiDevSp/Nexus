@@ -9,8 +9,8 @@ NOTION_VERSION = "2022-06-28"
 def register(assistant):
     def crear_nota(text):
         contenido = text.replace("crea nota", "", 1).strip()
-        token = os.getenv("NOTION_TOKEN")
-        database_id = os.getenv("NOTION_DATABASE_ID")
+        token = assistant.config.get("notion_token") or os.getenv("NOTION_TOKEN")
+        database_id = assistant.config.get("notion_database_id") or os.getenv("NOTION_DATABASE_ID")
         if not contenido:
             assistant.speak("No se proporcionó el contenido de la nota.")
             return
