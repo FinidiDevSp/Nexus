@@ -11,11 +11,12 @@ import keyboard
 import speech_recognition as sr
 from datetime import datetime
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -89,6 +90,30 @@ class ChatBubble(QWidget):
             padding: 8px 12px;
             """
         )
+
+    def animate_show(self) -> None:
+        """Mostrar la burbuja con una animación suave."""
+        final_height = self.sizeHint().height()
+        self.setMaximumHeight(0)
+
+        effect = QGraphicsOpacityEffect(self)
+        effect.setOpacity(0)
+        self.setGraphicsEffect(effect)
+
+        height_anim = QPropertyAnimation(self, b"maximumHeight")
+        height_anim.setStartValue(0)
+        height_anim.setEndValue(final_height)
+        height_anim.setDuration(200)
+        height_anim.setEasingCurve(QEasingCurve.OutCubic)
+
+        opacity_anim = QPropertyAnimation(effect, b"opacity")
+        opacity_anim.setStartValue(0)
+        opacity_anim.setEndValue(1)
+        opacity_anim.setDuration(200)
+
+        self._anim_refs = (height_anim, opacity_anim)
+        height_anim.start()
+        opacity_anim.start()
 
 
 class ChatWindow(QMainWindow):
@@ -398,6 +423,7 @@ class ChatWindow(QMainWindow):
         avatar = self.user_avatar if is_user else self.bot_avatar
         bubble = ChatBubble(text, is_user, avatar, self.theme)
         self.messages_layout.insertWidget(self.messages_layout.count() - 1, bubble)
+        bubble.animate_show()
         QTimer.singleShot(
             0,
             lambda: self.scroll_area.verticalScrollBar().setValue(
