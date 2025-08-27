@@ -5,6 +5,7 @@ superior y controles de entrada para enviar texto al asistente.
 """
 
 import json
+import os
 import threading
 
 import keyboard
@@ -31,6 +32,8 @@ from PySide6.QtWidgets import (
 )
 
 from main import CONFIG_FILE, NexusAssistant
+
+HISTORY_FILE = "chat_history.json"
 
 
 class ChatBubble(QWidget):
@@ -64,10 +67,18 @@ class ChatBubble(QWidget):
         self.bubble = QLabel(text)
         self.bubble.setWordWrap(True)
         self.update_theme(theme)
+        self.status_label: QLabel | None = None
 
         if is_user:
+            self.status_label = QLabel()
+            self.status_label.setPixmap(
+                self.style().standardIcon(QStyle.SP_DialogApplyButton).pixmap(16, 16)
+            )
+            self.status_label.setFixedSize(16, 16)
+            self.status_label.setVisible(False)
             layout.addStretch()
             layout.addWidget(self.bubble)
+            layout.addWidget(self.status_label)
             layout.addWidget(avatar_label)
         else:
             layout.addWidget(avatar_label)
@@ -115,6 +126,20 @@ class ChatBubble(QWidget):
         height_anim.start()
         opacity_anim.start()
 
+    def show_status_sent(self) -> None:
+        """Mostrar confirmación de envío en mensajes del usuario."""
+        if self.status_label:
+            self.status_label.setVisible(True)
+            effect = QGraphicsOpacityEffect(self.status_label)
+            effect.setOpacity(0)
+            self.status_label.setGraphicsEffect(effect)
+            anim = QPropertyAnimation(effect, b"opacity")
+            anim.setStartValue(0)
+            anim.setEndValue(1)
+            anim.setDuration(200)
+            self._status_anim = anim
+            anim.start()
+
 
 class ChatWindow(QMainWindow):
     """Ventana principal del asistente con icono en la bandeja."""
@@ -126,7 +151,10 @@ class ChatWindow(QMainWindow):
 
         # Asistente -----------------------------------------------------------
         self.assistant = assistant or NexusAssistant()
-        self.assistant.speak_callback = lambda text: QTimer.singleShot(0, lambda: self.add_message(text, is_user=False))
+        self.typing_bubble: ChatBubble | None = None
+        self.assistant.speak_callback = (
+            lambda text: QTimer.singleShot(0, lambda t=text: self._handle_assistant_reply(t))
+        )
         self.listening = False
         self.listen_thread: threading.Thread | None = None
 
@@ -148,6 +176,9 @@ class ChatWindow(QMainWindow):
         self.tray_icon.setContextMenu(menu)
         self.tray_icon.activated.connect(self._on_tray_activated)
         self.tray_icon.show()
+
+        # Historial -----------------------------------------------------------
+        self.history: list[tuple[str, bool]] = self._load_history()
 
         # Interface principal -------------------------------------------------
         central = QWidget()
@@ -209,9 +240,33 @@ class ChatWindow(QMainWindow):
         self.scroll_area.setWidget(self.messages_widget)
         v_layout.addWidget(self.scroll_area, 1)
 
+        for msg, is_user in self.history:
+            bubble = ChatBubble(
+                msg,
+                is_user,
+                self.user_avatar if is_user else self.bot_avatar,
+                theme=self.assistant.config.get("tema", "light"),
+            )
+            self.messages_layout.insertWidget(self.messages_layout.count() - 1, bubble)
+
+        # Sugerencias rápidas
+        self.suggestions_bar = QWidget()
+        sugg_layout = QHBoxLayout(self.suggestions_bar)
+        for cmd in ("¿Qué clima hay?", "Crea nota", "Abre google"):
+            btn = QToolButton()
+            btn.setText(cmd)
+            btn.setToolButtonStyle(Qt.ToolButtonTextOnly)
+            btn.clicked.connect(lambda _=False, t=cmd: self._use_suggestion(t))
+            sugg_layout.addWidget(btn)
+        sugg_layout.addStretch()
+        v_layout.addWidget(self.suggestions_bar)
+
         # Entrada de texto
         self.input_bar = QWidget()
         input_layout = QHBoxLayout(self.input_bar)
+        self.attach_btn = QToolButton()
+        self.attach_btn.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        self.attach_btn.clicked.connect(self.attach_file)
         self.input = QLineEdit()
         self.input.setPlaceholderText("Type your message here...")
         self.input.returnPressed.connect(self.send_message)
@@ -222,6 +277,7 @@ class ChatWindow(QMainWindow):
         self.mic_btn.setCheckable(True)
         self.mic_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
         self.mic_btn.toggled.connect(self.toggle_listening)
+        input_layout.addWidget(self.attach_btn)
         input_layout.addWidget(self.input, 1)
         input_layout.addWidget(send_btn)
         input_layout.addWidget(self.mic_btn)
@@ -419,26 +475,71 @@ class ChatWindow(QMainWindow):
         self._apply_theme(self._calculate_theme())
 
     # ------------------------------------------------------------------
-    def add_message(self, text: str, is_user: bool) -> None:
+    def add_message(self, text: str, is_user: bool) -> ChatBubble:
         avatar = self.user_avatar if is_user else self.bot_avatar
         bubble = ChatBubble(text, is_user, avatar, self.theme)
         self.messages_layout.insertWidget(self.messages_layout.count() - 1, bubble)
         bubble.animate_show()
+        self.history.append((text, is_user))
+        self._save_history()
         QTimer.singleShot(
             0,
             lambda: self.scroll_area.verticalScrollBar().setValue(
                 self.scroll_area.verticalScrollBar().maximum()
             ),
         )
+        return bubble
+
+    def _show_typing(self) -> None:
+        if self.typing_bubble is None:
+            self.typing_bubble = ChatBubble("…", False, self.bot_avatar, self.theme)
+            self.messages_layout.insertWidget(
+                self.messages_layout.count() - 1, self.typing_bubble
+            )
+            self.typing_bubble.animate_show()
+
+    def _handle_assistant_reply(self, text: str) -> None:
+        if self.typing_bubble:
+            self.messages_layout.removeWidget(self.typing_bubble)
+            self.typing_bubble.deleteLater()
+            self.typing_bubble = None
+        self.add_message(text, is_user=False)
+
+    def _use_suggestion(self, text: str) -> None:
+        self.input.setText(text)
+        self.send_message()
+
+    def attach_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Adjuntar archivo", "", "Archivos (*.*)"
+        )
+        if path:
+            fname = os.path.basename(path)
+            bubble = self.add_message(f"Archivo adjunto: {fname}", True)
+            QTimer.singleShot(200, bubble.show_status_sent)
+
+    def _process_text(self, text: str) -> None:
+        self.assistant.process_text(text)
 
     def send_message(self) -> None:
         text = self.input.text().strip()
         if not text:
             return
         self.input.clear()
-        self.add_message(text, is_user=True)
-        # Enviar al asistente
-        self.assistant.process_text(text)
+        bubble = self.add_message(text, is_user=True)
+        QTimer.singleShot(200, bubble.show_status_sent)
+        self._show_typing()
+        threading.Thread(target=self._process_text, args=(text,), daemon=True).start()
+
+    def _load_history(self) -> list[tuple[str, bool]]:
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return []
+
+    def _save_history(self) -> None:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.history, f, ensure_ascii=False, indent=2)
 
 
 __all__ = ["ChatWindow", "ChatBubble"]
