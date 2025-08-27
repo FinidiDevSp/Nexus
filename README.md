@@ -12,6 +12,7 @@ El archivo `config.json` en la raíz del proyecto define los ajustes básicos:
   "hotkey": "ctrl+shift+space",
   "reconocimiento_facial": false,
   "modo_silencio": false,
+  "tema": "auto",
   "avatar_usuario": "",
   "avatar_asistente": "",
   "escenarios": {
@@ -28,6 +29,7 @@ El archivo `config.json` en la raíz del proyecto define los ajustes básicos:
 - `hotkey`: combinación de teclas para activar el asistente manualmente.
 - `reconocimiento_facial`: si está activo, se pedirá confirmación antes de iniciar.
 - `modo_silencio`: inicia sin salida de voz.
+- `tema`: modo de color de la interfaz (`claro`, `oscuro` o `auto` para alternar según la hora).
 - `avatar_usuario`: imagen utilizada para los mensajes del usuario.
 - `avatar_asistente`: imagen mostrada en las respuestas del asistente.
 - `escenarios`: conjuntos de programas que pueden abrirse con el comando "abre <nombre>".
