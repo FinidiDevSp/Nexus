@@ -8,8 +8,12 @@ GOOGLE_API = "https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/eve
 
 def register(assistant):
     def reuniones(text):
-        token = os.getenv("GOOGLE_CALENDAR_TOKEN")
-        calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary")
+        token = assistant.config.get("google_calendar_token") or os.getenv("GOOGLE_CALENDAR_TOKEN")
+        calendar_id = (
+            assistant.config.get("google_calendar_id")
+            or os.getenv("GOOGLE_CALENDAR_ID")
+            or "primary"
+        )
         if not token:
             assistant.speak("No hay token de Google Calendar.")
             return
