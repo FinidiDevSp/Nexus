@@ -83,20 +83,6 @@ class NexusAssistant:
         with open(NOTES_FILE, "w", encoding="utf-8") as f:
             json.dump(self.notes, f, ensure_ascii=False, indent=2)
 
-    def _listen(self) -> str:
-        with sr.Microphone() as source:
-            self.recognizer.adjust_for_ambient_noise(source)
-            audio = self.recognizer.listen(source)
-        try:
-            comando = self.recognizer.recognize_google(audio, language="es-ES").lower()
-            print(f"Escuchado: {comando}")
-            return comando
-        except sr.UnknownValueError:
-            return ""
-        except sr.RequestError:
-            self._say("Error con el servicio de reconocimiento de voz.")
-            return ""
-
     # Acciones -------------------------------------------------------------------
     def _chatgpt(self, text: str) -> None:
         api_key = os.getenv("OPENAI_API_KEY")
@@ -253,27 +239,6 @@ class NexusAssistant:
                 action(text)
                 return
         self._chatgpt(text)
-
-    def run(self) -> None:
-        if getattr(self, "require_face", False):
-            if not self._confirm_face():
-                self._say("No se confirmó la identidad.")
-                return
-        self._say("Nexus iniciado.")
-        while True:
-            if not self.active:
-                keyboard.wait(self.hotkey)
-                self.active = True
-            if keyboard.is_pressed(self.hotkey):
-                comando = self._listen()
-                self._process(comando)
-                continue
-            comando = self._listen()
-            if self.keyword in comando:
-                comando = comando.replace(self.keyword, "", 1).strip()
-                if not comando:
-                    comando = self._listen()
-                self._process(comando)
 
 if __name__ == "__main__":
     from PySide6.QtWidgets import QApplication

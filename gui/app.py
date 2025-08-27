@@ -4,6 +4,10 @@ Incluye un área de conversación con burbujas de mensajes, una barra
 superior y controles de entrada para enviar texto al asistente.
 """
 
+import threading
+
+import keyboard
+import speech_recognition as sr
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QApplication,
@@ -58,9 +62,11 @@ class ChatWindow(QMainWindow):
 
         def patched_say(text: str) -> None:
             original_say(text)
-            self.add_message(text, is_user=False)
+            QTimer.singleShot(0, lambda: self.add_message(text, is_user=False))
 
         self.assistant._say = patched_say  # type: ignore[attr-defined]
+        self.listening = False
+        self.listen_thread: threading.Thread | None = None
 
         # Icono en bandeja ----------------------------------------------------
         self.tray_icon = QSystemTrayIcon(self)
@@ -116,9 +122,16 @@ class ChatWindow(QMainWindow):
         self.input.returnPressed.connect(self.send_message)
         send_btn = QPushButton("Enviar")
         send_btn.clicked.connect(self.send_message)
+        self.mic_btn = QToolButton()
+        self.mic_btn.setCheckable(True)
+        self.mic_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
+        self.mic_btn.toggled.connect(self.toggle_listening)
         input_layout.addWidget(self.input, 1)
         input_layout.addWidget(send_btn)
+        input_layout.addWidget(self.mic_btn)
         v_layout.addWidget(input_bar)
+
+        keyboard.add_hotkey(self.assistant.hotkey, self._hotkey_listen)
 
     def toggle_visibility(self) -> None:
         if self.isVisible():
@@ -134,6 +147,43 @@ class ChatWindow(QMainWindow):
     def closeEvent(self, event) -> None:  # type: ignore[override]
         event.ignore()
         self.hide()
+
+    def toggle_listening(self, active: bool) -> None:
+        self.listening = active
+        icon = QStyle.SP_MediaStop if active else QStyle.SP_MediaVolume
+        self.mic_btn.setIcon(self.style().standardIcon(icon))
+        if active:
+            self.listen_thread = threading.Thread(target=self._listen_loop, daemon=True)
+            self.listen_thread.start()
+
+    def _listen(self) -> str:
+        with sr.Microphone() as source:
+            self.assistant.recognizer.adjust_for_ambient_noise(source)
+            audio = self.assistant.recognizer.listen(source)
+        try:
+            comando = (
+                self.assistant.recognizer.recognize_google(audio, language="es-ES").lower()
+            )
+            print(f"Escuchado: {comando}")
+            return comando
+        except sr.UnknownValueError:
+            return ""
+        except sr.RequestError:
+            self.assistant._say("Error con el servicio de reconocimiento de voz.")
+            return ""
+
+    def _listen_loop(self) -> None:
+        while self.listening:
+            text = self._listen()
+            if text:
+                QTimer.singleShot(0, lambda t=text: self.add_message(t, True))
+                self.assistant._process(text)
+
+    def _hotkey_listen(self) -> None:
+        text = self._listen()
+        if text:
+            QTimer.singleShot(0, lambda t=text: self.add_message(t, True))
+            self.assistant._process(text)
 
     # ------------------------------------------------------------------
     def add_message(self, text: str, is_user: bool) -> None:
