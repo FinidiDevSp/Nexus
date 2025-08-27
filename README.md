@@ -42,7 +42,7 @@ Ejemplo mínimo:
 def register(assistant):
     assistant.register_command(
         "di hola",
-        lambda text: assistant._say("¡Hola!"),
+        lambda text: assistant.speak("¡Hola!"),
     )
 ```
 

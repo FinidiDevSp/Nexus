@@ -16,7 +16,7 @@ def register(assistant):
         if resto.isdigit():
             assistant._remove_note(int(resto) - 1)
         else:
-            assistant._say("Indica el número de la nota a borrar.")
+            assistant.speak("Indica el número de la nota a borrar.")
     assistant.register_command(
         "borra nota",
         _remove,

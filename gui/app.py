@@ -58,13 +58,7 @@ class ChatWindow(QMainWindow):
 
         # Asistente -----------------------------------------------------------
         self.assistant = assistant or NexusAssistant()
-        original_say = self.assistant._say
-
-        def patched_say(text: str) -> None:
-            original_say(text)
-            QTimer.singleShot(0, lambda: self.add_message(text, is_user=False))
-
-        self.assistant._say = patched_say  # type: ignore[attr-defined]
+        self.assistant.speak_callback = lambda text: QTimer.singleShot(0, lambda: self.add_message(text, is_user=False))
         self.listening = False
         self.listen_thread: threading.Thread | None = None
 
@@ -169,7 +163,7 @@ class ChatWindow(QMainWindow):
         except sr.UnknownValueError:
             return ""
         except sr.RequestError:
-            self.assistant._say("Error con el servicio de reconocimiento de voz.")
+            self.assistant.speak("Error con el servicio de reconocimiento de voz.")
             return ""
 
     def _listen_loop(self) -> None:
@@ -177,13 +171,13 @@ class ChatWindow(QMainWindow):
             text = self._listen()
             if text:
                 QTimer.singleShot(0, lambda t=text: self.add_message(t, True))
-                self.assistant._process(text)
+                self.assistant.process_text(text)
 
     def _hotkey_listen(self) -> None:
         text = self._listen()
         if text:
             QTimer.singleShot(0, lambda t=text: self.add_message(t, True))
-            self.assistant._process(text)
+            self.assistant.process_text(text)
 
     # ------------------------------------------------------------------
     def add_message(self, text: str, is_user: bool) -> None:
@@ -203,7 +197,7 @@ class ChatWindow(QMainWindow):
         self.input.clear()
         self.add_message(text, is_user=True)
         # Enviar al asistente
-        self.assistant._process(text)
+        self.assistant.process_text(text)
 
 
 __all__ = ["ChatWindow", "ChatBubble"]

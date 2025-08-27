@@ -20,7 +20,7 @@ def register(assistant):
         if ciudad:
             assistant._get_weather(ciudad)
         else:
-            assistant._say("No se reconoció la ciudad.")
+            assistant.speak("No se reconoció la ciudad.")
 
     assistant.register_command("clima en", weather, match_type="startswith")
     assistant.register_command("tiempo en", weather, match_type="startswith")
@@ -28,9 +28,9 @@ def register(assistant):
     def timer(text):
         try:
             minutos = int(text.split("temporizador de", 1)[1].split("minuto")[0].strip())
-            assistant._say(f"Temporizador de {minutos} minutos iniciado.")
+            assistant.speak(f"Temporizador de {minutos} minutos iniciado.")
             assistant._set_timer(minutos * 60)
         except ValueError:
-            assistant._say("No se reconoció la duración del temporizador.")
+            assistant.speak("No se reconoció la duración del temporizador.")
 
     assistant.register_command("temporizador de", timer, match_type="startswith")
