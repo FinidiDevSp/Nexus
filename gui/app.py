@@ -155,6 +155,16 @@ class ChatWindow(QMainWindow):
 
         keyboard.add_hotkey(self.assistant.hotkey, self._hotkey_listen)
 
+    def _move_to_tray(self) -> None:
+        screen = QApplication.primaryScreen().availableGeometry()
+        x = screen.width() - self.width()
+        y = screen.height() - self.height()
+        self.move(x, y)
+
+    def showEvent(self, event) -> None:  # type: ignore[override]
+        super().showEvent(event)
+        self._move_to_tray()
+
     def toggle_visibility(self) -> None:
         if self.isVisible():
             self.hide()
