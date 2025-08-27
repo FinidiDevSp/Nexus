@@ -4,13 +4,16 @@ Incluye un área de conversación con burbujas de mensajes, una barra
 superior y controles de entrada para enviar texto al asistente.
 """
 
+import json
 import threading
 
 import keyboard
 import speech_recognition as sr
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -24,24 +27,29 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from main import NexusAssistant
+from main import CONFIG_FILE, NexusAssistant
 
 
 class ChatBubble(QWidget):
     """Pequeño widget con apariencia de burbuja de chat."""
 
-    def __init__(self, text: str, is_user: bool) -> None:
+    def __init__(self, text: str, is_user: bool, avatar: QPixmap | None = None) -> None:
         super().__init__()
         layout = QHBoxLayout(self)
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setAlignment(Qt.AlignRight if is_user else Qt.AlignLeft)
 
-        avatar = QLabel()
-        avatar_icon = self.style().standardIcon(
-            QStyle.SP_DialogYesButton if is_user else QStyle.SP_ComputerIcon
-        )
-        avatar.setPixmap(avatar_icon.pixmap(32, 32))
-        avatar.setFixedSize(32, 32)
+        avatar_label = QLabel()
+        if avatar is not None and not avatar.isNull():
+            avatar_label.setPixmap(
+                avatar.scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            )
+        else:
+            avatar_icon = self.style().standardIcon(
+                QStyle.SP_DialogYesButton if is_user else QStyle.SP_ComputerIcon
+            )
+            avatar_label.setPixmap(avatar_icon.pixmap(32, 32))
+        avatar_label.setFixedSize(32, 32)
 
         bubble = QLabel(text)
         bubble.setWordWrap(True)
@@ -58,9 +66,9 @@ class ChatBubble(QWidget):
         if is_user:
             layout.addStretch()
             layout.addWidget(bubble)
-            layout.addWidget(avatar)
+            layout.addWidget(avatar_label)
         else:
-            layout.addWidget(avatar)
+            layout.addWidget(avatar_label)
             layout.addWidget(bubble)
             layout.addStretch()
 
@@ -102,6 +110,10 @@ class ChatWindow(QMainWindow):
         self.listening = False
         self.listen_thread: threading.Thread | None = None
 
+        # Avatares ------------------------------------------------------------
+        self.user_avatar = self._load_avatar_pixmap(self.assistant.config.get("avatar_usuario"))
+        self.bot_avatar = self._load_avatar_pixmap(self.assistant.config.get("avatar_asistente"))
+
         # Icono en bandeja ----------------------------------------------------
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
@@ -140,12 +152,28 @@ class ChatWindow(QMainWindow):
         top_layout.addWidget(avatar)
         top_layout.addLayout(title_box)
         top_layout.addStretch()
+        settings_btn = QToolButton()
+        settings_btn.setIcon(self.style().standardIcon(QStyle.SP_FileDialogDetailedView))
+        settings_menu = QMenu(settings_btn)
+        user_menu = settings_menu.addMenu("Avatar usuario")
+        asis_menu = settings_menu.addMenu("Avatar asistente")
+        for menu, is_user in ((user_menu, True), (asis_menu, False)):
+            action_def = menu.addAction("Predeterminado")
+            action_def.triggered.connect(lambda _=False, u=is_user: self._set_avatar_style(u))
+            action_comp = menu.addAction("Computadora")
+            action_comp.triggered.connect(lambda _=False, u=is_user: self._set_avatar_style(u, computer=True))
+            menu.addSeparator()
+            action_upload = menu.addAction("Cargar imagen...")
+            action_upload.triggered.connect(lambda _=False, u=is_user: self._load_avatar_image(u))
+        settings_btn.setMenu(settings_menu)
+        settings_btn.setPopupMode(QToolButton.InstantPopup)
         min_btn = QToolButton()
         min_btn.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMinButton))
         min_btn.clicked.connect(self.showMinimized)
         close_btn = QToolButton()
         close_btn.setIcon(self.style().standardIcon(QStyle.SP_TitleBarCloseButton))
         close_btn.clicked.connect(self.close)
+        top_layout.addWidget(settings_btn)
         top_layout.addWidget(min_btn)
         top_layout.addWidget(close_btn)
         v_layout.addWidget(top_bar)
@@ -244,9 +272,50 @@ class ChatWindow(QMainWindow):
             QTimer.singleShot(0, lambda t=text: self.add_message(t, True))
             self.assistant.process_text(text)
 
+    def _load_avatar_pixmap(self, path: str | None) -> QPixmap | None:
+        if path:
+            pix = QPixmap(path)
+            if not pix.isNull():
+                return pix
+        return None
+
+    def _save_config(self) -> None:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.assistant.config, f, ensure_ascii=False, indent=2)
+
+    def _set_avatar_style(self, is_user: bool, computer: bool = False) -> None:
+        if computer:
+            icon = QStyle.SP_ComputerIcon if is_user else QStyle.SP_DriveHDIcon
+        else:
+            icon = QStyle.SP_DialogYesButton if is_user else QStyle.SP_ComputerIcon
+        pix = self.style().standardIcon(icon).pixmap(32, 32)
+        key = "avatar_usuario" if is_user else "avatar_asistente"
+        self.assistant.config[key] = ""
+        if is_user:
+            self.user_avatar = pix
+        else:
+            self.bot_avatar = pix
+        self._save_config()
+
+    def _load_avatar_image(self, is_user: bool) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Seleccionar imagen", "", "Images (*.png *.jpg *.jpeg *.bmp)"
+        )
+        if path:
+            pix = QPixmap(path)
+            if not pix.isNull():
+                key = "avatar_usuario" if is_user else "avatar_asistente"
+                self.assistant.config[key] = path
+                if is_user:
+                    self.user_avatar = pix
+                else:
+                    self.bot_avatar = pix
+                self._save_config()
+
     # ------------------------------------------------------------------
     def add_message(self, text: str, is_user: bool) -> None:
-        bubble = ChatBubble(text, is_user)
+        avatar = self.user_avatar if is_user else self.bot_avatar
+        bubble = ChatBubble(text, is_user, avatar)
         self.messages_layout.insertWidget(self.messages_layout.count() - 1, bubble)
         QTimer.singleShot(
             0,
