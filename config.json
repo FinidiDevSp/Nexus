@@ -3,6 +3,7 @@
   "hotkey": "ctrl+shift+space",
   "reconocimiento_facial": false,
   "modo_silencio": false,
+  "tema": "auto",
   "avatar_usuario": "",
   "avatar_asistente": "",
   "escenarios": {

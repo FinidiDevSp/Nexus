@@ -9,6 +9,8 @@ import threading
 
 import keyboard
 import speech_recognition as sr
+from datetime import datetime
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
@@ -33,8 +35,15 @@ from main import CONFIG_FILE, NexusAssistant
 class ChatBubble(QWidget):
     """Pequeño widget con apariencia de burbuja de chat."""
 
-    def __init__(self, text: str, is_user: bool, avatar: QPixmap | None = None) -> None:
+    def __init__(
+        self,
+        text: str,
+        is_user: bool,
+        avatar: QPixmap | None = None,
+        theme: str = "light",
+    ) -> None:
         super().__init__()
+        self.is_user = is_user
         layout = QHBoxLayout(self)
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setAlignment(Qt.AlignRight if is_user else Qt.AlignLeft)
@@ -51,26 +60,35 @@ class ChatBubble(QWidget):
             avatar_label.setPixmap(avatar_icon.pixmap(32, 32))
         avatar_label.setFixedSize(32, 32)
 
-        bubble = QLabel(text)
-        bubble.setWordWrap(True)
-        bubble.setStyleSheet(
-            """
-            background-color: %s;
-            color: #333333;
-            border-radius: 12px;
-            padding: 8px 12px;
-            """
-            % ("#CDE8F6" if is_user else "#F0F0F0")
-        )
+        self.bubble = QLabel(text)
+        self.bubble.setWordWrap(True)
+        self.update_theme(theme)
 
         if is_user:
             layout.addStretch()
-            layout.addWidget(bubble)
+            layout.addWidget(self.bubble)
             layout.addWidget(avatar_label)
         else:
             layout.addWidget(avatar_label)
-            layout.addWidget(bubble)
+            layout.addWidget(self.bubble)
             layout.addStretch()
+
+    def update_theme(self, theme: str) -> None:
+        """Actualizar los colores de la burbuja según el tema."""
+        if theme == "dark":
+            bg = "#3D7E9A" if self.is_user else "#4E4E4E"
+            text_color = "#EEEEEE"
+        else:
+            bg = "#CDE8F6" if self.is_user else "#F0F0F0"
+            text_color = "#333333"
+        self.bubble.setStyleSheet(
+            f"""
+            background-color: {bg};
+            color: {text_color};
+            border-radius: 12px;
+            padding: 8px 12px;
+            """
+        )
 
 
 class ChatWindow(QMainWindow):
@@ -80,29 +98,6 @@ class ChatWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Nexus")
         self.resize(400, 500)
-        self.setStyleSheet(
-            """
-            QWidget {
-                background-color: #FAFAFA;
-                font-family: Arial, sans-serif;
-                font-size: 14px;
-                color: #333333;
-            }
-            QLineEdit {
-                border: 1px solid #CCCCCC;
-                border-radius: 8px;
-                padding: 4px 8px;
-                background-color: #FFFFFF;
-            }
-            QToolButton {
-                border-radius: 8px;
-                padding: 4px;
-            }
-            QScrollArea {
-                border: none;
-            }
-            """
-        )
 
         # Asistente -----------------------------------------------------------
         self.assistant = assistant or NexusAssistant()
@@ -135,20 +130,15 @@ class ChatWindow(QMainWindow):
         v_layout = QVBoxLayout(central)
 
         # Barra superior
-        top_bar = QWidget()
-        top_bar.setStyleSheet(
-            "background-color: #FFFFFF; padding: 8px; border-bottom: 1px solid #E0E0E0;"
-        )
-        top_layout = QHBoxLayout(top_bar)
+        self.top_bar = QWidget()
+        top_layout = QHBoxLayout(self.top_bar)
         avatar = QLabel()
         avatar.setPixmap(self.style().standardIcon(QStyle.SP_ComputerIcon).pixmap(32, 32))
         title_box = QVBoxLayout()
-        title = QLabel("Need help?")
-        title.setStyleSheet("font-weight: bold; color: #333333; font-size: 14px;")
-        subtitle = QLabel("We reply immediately")
-        subtitle.setStyleSheet("font-size: 11px; color: #888888;")
-        title_box.addWidget(title)
-        title_box.addWidget(subtitle)
+        self.title = QLabel("Need help?")
+        self.subtitle = QLabel("We reply immediately")
+        title_box.addWidget(self.title)
+        title_box.addWidget(self.subtitle)
         top_layout.addWidget(avatar)
         top_layout.addLayout(title_box)
         top_layout.addStretch()
@@ -165,6 +155,13 @@ class ChatWindow(QMainWindow):
             menu.addSeparator()
             action_upload = menu.addAction("Cargar imagen...")
             action_upload.triggered.connect(lambda _=False, u=is_user: self._load_avatar_image(u))
+        theme_menu = settings_menu.addMenu("Tema")
+        action_light = theme_menu.addAction("Claro")
+        action_dark = theme_menu.addAction("Oscuro")
+        action_auto = theme_menu.addAction("Automático")
+        action_light.triggered.connect(lambda: self._set_theme("light"))
+        action_dark.triggered.connect(lambda: self._set_theme("dark"))
+        action_auto.triggered.connect(lambda: self._set_theme("auto"))
         settings_btn.setMenu(settings_menu)
         settings_btn.setPopupMode(QToolButton.InstantPopup)
         min_btn = QToolButton()
@@ -176,7 +173,7 @@ class ChatWindow(QMainWindow):
         top_layout.addWidget(settings_btn)
         top_layout.addWidget(min_btn)
         top_layout.addWidget(close_btn)
-        v_layout.addWidget(top_bar)
+        v_layout.addWidget(self.top_bar)
 
         # Área de mensajes
         self.scroll_area = QScrollArea()
@@ -188,11 +185,8 @@ class ChatWindow(QMainWindow):
         v_layout.addWidget(self.scroll_area, 1)
 
         # Entrada de texto
-        input_bar = QWidget()
-        input_bar.setStyleSheet(
-            "background-color: #FFFFFF; padding: 4px; border-top: 1px solid #E0E0E0;"
-        )
-        input_layout = QHBoxLayout(input_bar)
+        self.input_bar = QWidget()
+        input_layout = QHBoxLayout(self.input_bar)
         self.input = QLineEdit()
         self.input.setPlaceholderText("Type your message here...")
         self.input.returnPressed.connect(self.send_message)
@@ -206,9 +200,15 @@ class ChatWindow(QMainWindow):
         input_layout.addWidget(self.input, 1)
         input_layout.addWidget(send_btn)
         input_layout.addWidget(self.mic_btn)
-        v_layout.addWidget(input_bar)
+        v_layout.addWidget(self.input_bar)
 
         keyboard.add_hotkey(self.assistant.hotkey, self._hotkey_listen)
+
+        # Aplicar tema inicial y comprobar cambios automáticos
+        self.theme_timer = QTimer(self)
+        self.theme_timer.timeout.connect(self._update_theme_if_auto)
+        self.theme_timer.start(60000)
+        self._apply_theme(self._calculate_theme())
 
     def _move_to_tray(self) -> None:
         screen = QApplication.primaryScreen().availableGeometry()
@@ -312,10 +312,91 @@ class ChatWindow(QMainWindow):
                     self.bot_avatar = pix
                 self._save_config()
 
+    # Temas -----------------------------------------------------------------
+    def _calculate_theme(self) -> str:
+        mode = self.assistant.config.get("tema", "auto")
+        if mode == "dark" or mode == "oscuro":
+            return "dark"
+        if mode == "light" or mode == "claro":
+            return "light"
+        hour = datetime.now().hour
+        return "dark" if hour >= 20 or hour < 7 else "light"
+
+    def _apply_theme(self, theme: str) -> None:
+        self.theme = theme
+        if theme == "dark":
+            widget_bg = "#2B2B2B"
+            text_color = "#EEEEEE"
+            line_bg = "#3C3F41"
+            line_border = "#555555"
+            top_bg = "#3C3F41"
+            top_border = "#444444"
+            sub_color = "#BBBBBB"
+        else:
+            widget_bg = "#FAFAFA"
+            text_color = "#333333"
+            line_bg = "#FFFFFF"
+            line_border = "#CCCCCC"
+            top_bg = "#FFFFFF"
+            top_border = "#E0E0E0"
+            sub_color = "#888888"
+        self.setStyleSheet(
+            f"""
+            QWidget {{
+                background-color: {widget_bg};
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+                color: {text_color};
+            }}
+            QLineEdit {{
+                border: 1px solid {line_border};
+                border-radius: 8px;
+                padding: 4px 8px;
+                background-color: {line_bg};
+            }}
+            QToolButton {{
+                border-radius: 8px;
+                padding: 4px;
+            }}
+            QScrollArea {{
+                border: none;
+            }}
+            """
+        )
+        self.top_bar.setStyleSheet(
+            f"background-color: {top_bg}; padding: 8px; border-bottom: 1px solid {top_border};"
+        )
+        self.input_bar.setStyleSheet(
+            f"background-color: {top_bg}; padding: 4px; border-top: 1px solid {top_border};"
+        )
+        self.title.setStyleSheet(
+            f"font-weight: bold; color: {text_color}; font-size: 14px;"
+        )
+        self.subtitle.setStyleSheet(
+            f"font-size: 11px; color: {sub_color};"
+        )
+        # Actualizar burbujas existentes
+        for i in range(self.messages_layout.count() - 1):
+            item = self.messages_layout.itemAt(i)
+            widget = item.widget()
+            if isinstance(widget, ChatBubble):
+                widget.update_theme(theme)
+
+    def _update_theme_if_auto(self) -> None:
+        if self.assistant.config.get("tema", "auto") == "auto":
+            new_theme = self._calculate_theme()
+            if new_theme != getattr(self, "theme", "light"):
+                self._apply_theme(new_theme)
+
+    def _set_theme(self, mode: str) -> None:
+        self.assistant.config["tema"] = mode
+        self._save_config()
+        self._apply_theme(self._calculate_theme())
+
     # ------------------------------------------------------------------
     def add_message(self, text: str, is_user: bool) -> None:
         avatar = self.user_avatar if is_user else self.bot_avatar
-        bubble = ChatBubble(text, is_user, avatar)
+        bubble = ChatBubble(text, is_user, avatar, self.theme)
         self.messages_layout.insertWidget(self.messages_layout.count() - 1, bubble)
         QTimer.singleShot(
             0,
