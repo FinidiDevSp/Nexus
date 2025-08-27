@@ -16,7 +16,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QMenu,
-    QPushButton,
     QScrollArea,
     QSystemTrayIcon,
     QStyle,
@@ -34,17 +33,35 @@ class ChatBubble(QWidget):
     def __init__(self, text: str, is_user: bool) -> None:
         super().__init__()
         layout = QHBoxLayout(self)
-        label = QLabel(text)
-        label.setWordWrap(True)
-        label.setStyleSheet(
-            "background-color: %s; border-radius: 8px; padding: 4px 8px;"
-            % ("#DCF8C6" if is_user else "#E5E5EA")
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setAlignment(Qt.AlignRight if is_user else Qt.AlignLeft)
+
+        avatar = QLabel()
+        avatar_icon = self.style().standardIcon(
+            QStyle.SP_DialogYesButton if is_user else QStyle.SP_ComputerIcon
         )
+        avatar.setPixmap(avatar_icon.pixmap(32, 32))
+        avatar.setFixedSize(32, 32)
+
+        bubble = QLabel(text)
+        bubble.setWordWrap(True)
+        bubble.setStyleSheet(
+            """
+            background-color: %s;
+            color: %s;
+            border-radius: 16px;
+            padding: 8px 12px;
+            """
+            % ("#1976D2" if is_user else "#E5E5EA", "white" if is_user else "black")
+        )
+
         if is_user:
             layout.addStretch()
-            layout.addWidget(label)
+            layout.addWidget(bubble)
+            layout.addWidget(avatar)
         else:
-            layout.addWidget(label)
+            layout.addWidget(avatar)
+            layout.addWidget(bubble)
             layout.addStretch()
 
 
@@ -84,19 +101,27 @@ class ChatWindow(QMainWindow):
 
         # Barra superior
         top_bar = QWidget()
+        top_bar.setStyleSheet("background-color: #1976D2; padding: 8px;")
         top_layout = QHBoxLayout(top_bar)
-        icon = QLabel()
-        icon.setPixmap(self.style().standardIcon(QStyle.SP_ComputerIcon).pixmap(24, 24))
-        title = QLabel("Nexus")
-        top_layout.addWidget(icon)
-        top_layout.addWidget(title)
+        avatar = QLabel()
+        avatar.setPixmap(self.style().standardIcon(QStyle.SP_ComputerIcon).pixmap(32, 32))
+        title_box = QVBoxLayout()
+        title = QLabel("Need help?")
+        title.setStyleSheet("font-weight: bold; color: white;")
+        subtitle = QLabel("We reply immediately")
+        subtitle.setStyleSheet("font-size: 10px; color: #D0D0D0;")
+        title_box.addWidget(title)
+        title_box.addWidget(subtitle)
+        top_layout.addWidget(avatar)
+        top_layout.addLayout(title_box)
         top_layout.addStretch()
-        info_btn = QToolButton()
-        info_btn.setIcon(self.style().standardIcon(QStyle.SP_MessageBoxInformation))
+        min_btn = QToolButton()
+        min_btn.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMinButton))
+        min_btn.clicked.connect(self.showMinimized)
         close_btn = QToolButton()
         close_btn.setIcon(self.style().standardIcon(QStyle.SP_TitleBarCloseButton))
         close_btn.clicked.connect(self.close)
-        top_layout.addWidget(info_btn)
+        top_layout.addWidget(min_btn)
         top_layout.addWidget(close_btn)
         v_layout.addWidget(top_bar)
 
@@ -111,10 +136,13 @@ class ChatWindow(QMainWindow):
 
         # Entrada de texto
         input_bar = QWidget()
+        input_bar.setStyleSheet("background-color: #F5F5F5; padding: 4px;")
         input_layout = QHBoxLayout(input_bar)
         self.input = QLineEdit()
+        self.input.setPlaceholderText("Type your message here...")
         self.input.returnPressed.connect(self.send_message)
-        send_btn = QPushButton("Enviar")
+        send_btn = QToolButton()
+        send_btn.setIcon(self.style().standardIcon(QStyle.SP_ArrowForward))
         send_btn.clicked.connect(self.send_message)
         self.mic_btn = QToolButton()
         self.mic_btn.setCheckable(True)
