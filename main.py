@@ -13,6 +13,7 @@ import speech_recognition as sr
 
 CONFIG_FILE = "config.json"
 MEMORY_FILE = "memory.json"
+NOTES_FILE = "notes.json"
 
 
 class NexusAssistant:
@@ -27,6 +28,7 @@ class NexusAssistant:
         self.tts = pyttsx3.init()
         self.active = True
         self.memory = self._load_memory()
+        self.notes = self._load_notes()
 
     # Utilidades -----------------------------------------------------------------
     def _say(self, text: str) -> None:
@@ -43,6 +45,16 @@ class NexusAssistant:
     def _save_memory(self) -> None:
         with open(MEMORY_FILE, "w", encoding="utf-8") as f:
             json.dump(self.memory, f, ensure_ascii=False, indent=2)
+
+    def _load_notes(self) -> list:
+        if os.path.exists(NOTES_FILE):
+            with open(NOTES_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return []
+
+    def _save_notes(self) -> None:
+        with open(NOTES_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.notes, f, ensure_ascii=False, indent=2)
 
     def _listen(self) -> str:
         with sr.Microphone() as source:
@@ -113,6 +125,27 @@ class NexusAssistant:
             except FileNotFoundError:
                 self._say("Archivo no encontrado.")
 
+    def _add_note(self, note: str) -> None:
+        if note:
+            self.notes.append(note)
+            self._say("Nota guardada.")
+        else:
+            self._say("No se proporcionó el contenido de la nota.")
+
+    def _list_notes(self) -> None:
+        if not self.notes:
+            self._say("No hay notas guardadas.")
+            return
+        for idx, note in enumerate(self.notes, start=1):
+            self._say(f"Nota {idx}: {note}")
+
+    def _remove_note(self, index: int) -> None:
+        if 0 <= index < len(self.notes):
+            nota = self.notes.pop(index)
+            self._say(f"Nota '{nota}' borrada.")
+        else:
+            self._say("Número de nota inválido.")
+
     def _get_weather(self, ciudad: str) -> None:
         api_key = os.getenv("OPENWEATHER_API_KEY")
         if not api_key:
@@ -170,6 +203,7 @@ class NexusAssistant:
         elif "salir" in text:
             self._say("Hasta luego.")
             self._save_memory()
+            self._save_notes()
             sys.exit(0)
         elif "modo apagado" in text:
             self.active = False
@@ -177,6 +211,17 @@ class NexusAssistant:
         elif "modo encendido" in text:
             self.active = True
             self._say("Modo encendido.")
+        elif text.startswith("anota"):
+            nota = text.replace("anota", "", 1).strip()
+            self._add_note(nota)
+        elif "lista notas" in text:
+            self._list_notes()
+        elif text.startswith("borra nota"):
+            resto = text.replace("borra nota", "", 1).strip()
+            if resto.isdigit():
+                self._remove_note(int(resto) - 1)
+            else:
+                self._say("Indica el número de la nota a borrar.")
         elif "crea archivo" in text or "borra archivo" in text:
             self._manage_files(text)
         elif "clima en" in text or "tiempo en" in text:
@@ -215,4 +260,5 @@ if __name__ == "__main__":
         asistente.run()
     finally:
         asistente._save_memory()
+        asistente._save_notes()
 
