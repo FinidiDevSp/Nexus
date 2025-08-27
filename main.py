@@ -1,12 +1,15 @@
+import importlib
 import json
 import os
 import platform
 import sys
 import webbrowser
+from pathlib import Path
 from urllib.parse import quote_plus
 
 import keyboard
 import openai
+import pkgutil
 import pyttsx3
 import requests
 import speech_recognition as sr
@@ -33,6 +36,22 @@ class NexusAssistant:
         self.memory = self._load_memory()
         self.timers = []
         self.notes = self._load_notes()
+        self.commands = {}
+        self._load_plugins()
+
+    def register_command(self, trigger: str, handler, match_type: str = "in") -> None:
+        """Registra un comando en el asistente."""
+        self.commands[trigger] = (handler, match_type)
+
+    def _load_plugins(self) -> None:
+        """Importa automáticamente los módulos del directorio de plugins."""
+        plugins_path = Path(__file__).parent / "plugins"
+        if not plugins_path.exists():
+            return
+        for module_info in pkgutil.iter_modules([str(plugins_path)]):
+            module = importlib.import_module(f"plugins.{module_info.name}")
+            if hasattr(module, "register"):
+                module.register(self)
 
     # Utilidades -----------------------------------------------------------------
     def _say(self, text: str) -> None:
@@ -208,72 +227,14 @@ class NexusAssistant:
 
     # Lógica principal ------------------------------------------------------------
     def _process(self, text: str) -> None:
-        if text.startswith("busca en google"):
-            self._google_search(text.replace("busca en google", "", 1))
-        elif "youtube" in text:
-            self._open_youtube()
-        elif "spotify" in text:
-            self._open_spotify()
-        elif "sube el volumen" in text:
-            self._adjust_volume(True)
-        elif "baja el volumen" in text:
-            self._adjust_volume(False)
-        elif "apaga la pantalla" in text or "apaga las pantallas" in text:
-            self._turn_off_screen()
-        elif "apaga" in text and "pantalla" not in text:
-            self._say("Apagando el ordenador.")
-            self._shutdown()
-        elif "salir" in text:
-            self._say("Hasta luego.")
-            self._save_memory()
-            self._save_notes()
-            sys.exit(0)
-        elif "modo apagado" in text:
-            self.active = False
-            self._say("Modo apagado.")
-        elif "modo encendido" in text:
-            self.active = True
-            self._say("Modo encendido.")
-        elif text.startswith("anota"):
-            nota = text.replace("anota", "", 1).strip()
-            self._add_note(nota)
-        elif "lista notas" in text:
-            self._list_notes()
-        elif text.startswith("borra nota"):
-            resto = text.replace("borra nota", "", 1).strip()
-            if resto.isdigit():
-                self._remove_note(int(resto) - 1)
-            else:
-                self._say("Indica el número de la nota a borrar.")
-        elif (
-            "qué hora es" in text
-            or "que hora es" in text
-            or "qué día es" in text
-            or "que dia es" in text
-        ):
-            self._tell_time()
-        elif "crea archivo" in text or "borra archivo" in text:
-            self._manage_files(text)
-        elif "clima en" in text or "tiempo en" in text:
-            if "clima en" in text:
-                ciudad = text.split("clima en", 1)[1].strip()
-            else:
-                ciudad = text.split("tiempo en", 1)[1].strip()
-            if ciudad:
-                self._get_weather(ciudad)
-            else:
-                self._say("No se reconoció la ciudad.")
-        elif "temporizador de" in text and "minuto" in text:
-            try:
-                minutos = int(
-                    text.split("temporizador de", 1)[1].split("minuto")[0].strip()
-                )
-                self._say(f"Temporizador de {minutos} minutos iniciado.")
-                self._set_timer(minutos * 60)
-            except ValueError:
-                self._say("No se reconoció la duración del temporizador.")
-        else:
-            self._chatgpt(text)
+        for trigger, (action, mode) in self.commands.items():
+            if mode == "startswith" and text.startswith(trigger):
+                action(text)
+                return
+            if mode == "in" and trigger in text:
+                action(text)
+                return
+        self._chatgpt(text)
 
     def run(self) -> None:
         self._say("Nexus iniciado.")
