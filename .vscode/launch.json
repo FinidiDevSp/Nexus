@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "Python: Launch main",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
             "console": "integratedTerminal"
