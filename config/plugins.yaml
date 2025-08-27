@@ -1,0 +1,8 @@
+# Default plugin configuration for Nexus.
+# Plugins are referenced by their module names relative to `nexus.plugins`.
+# Example:
+# plugins:
+#   example:
+#     enabled: true
+#     greeting: "hello"
+plugins: {}
