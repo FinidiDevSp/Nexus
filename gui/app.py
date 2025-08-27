@@ -48,11 +48,11 @@ class ChatBubble(QWidget):
         bubble.setStyleSheet(
             """
             background-color: %s;
-            color: %s;
-            border-radius: 16px;
+            color: #333333;
+            border-radius: 12px;
             padding: 8px 12px;
             """
-            % ("#1976D2" if is_user else "#E5E5EA", "white" if is_user else "black")
+            % ("#CDE8F6" if is_user else "#F0F0F0")
         )
 
         if is_user:
@@ -72,6 +72,29 @@ class ChatWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Nexus")
         self.resize(400, 500)
+        self.setStyleSheet(
+            """
+            QWidget {
+                background-color: #FAFAFA;
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+                color: #333333;
+            }
+            QLineEdit {
+                border: 1px solid #CCCCCC;
+                border-radius: 8px;
+                padding: 4px 8px;
+                background-color: #FFFFFF;
+            }
+            QToolButton {
+                border-radius: 8px;
+                padding: 4px;
+            }
+            QScrollArea {
+                border: none;
+            }
+            """
+        )
 
         # Asistente -----------------------------------------------------------
         self.assistant = assistant or NexusAssistant()
@@ -101,15 +124,17 @@ class ChatWindow(QMainWindow):
 
         # Barra superior
         top_bar = QWidget()
-        top_bar.setStyleSheet("background-color: #1976D2; padding: 8px;")
+        top_bar.setStyleSheet(
+            "background-color: #FFFFFF; padding: 8px; border-bottom: 1px solid #E0E0E0;"
+        )
         top_layout = QHBoxLayout(top_bar)
         avatar = QLabel()
         avatar.setPixmap(self.style().standardIcon(QStyle.SP_ComputerIcon).pixmap(32, 32))
         title_box = QVBoxLayout()
         title = QLabel("Need help?")
-        title.setStyleSheet("font-weight: bold; color: white;")
+        title.setStyleSheet("font-weight: bold; color: #333333; font-size: 14px;")
         subtitle = QLabel("We reply immediately")
-        subtitle.setStyleSheet("font-size: 10px; color: #D0D0D0;")
+        subtitle.setStyleSheet("font-size: 11px; color: #888888;")
         title_box.addWidget(title)
         title_box.addWidget(subtitle)
         top_layout.addWidget(avatar)
@@ -136,7 +161,9 @@ class ChatWindow(QMainWindow):
 
         # Entrada de texto
         input_bar = QWidget()
-        input_bar.setStyleSheet("background-color: #F5F5F5; padding: 4px;")
+        input_bar.setStyleSheet(
+            "background-color: #FFFFFF; padding: 4px; border-top: 1px solid #E0E0E0;"
+        )
         input_layout = QHBoxLayout(input_bar)
         self.input = QLineEdit()
         self.input.setPlaceholderText("Type your message here...")
