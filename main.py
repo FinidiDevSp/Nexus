@@ -8,6 +8,7 @@ from urllib.parse import quote_plus
 import keyboard
 import openai
 import pyttsx3
+import requests
 import speech_recognition as sr
 
 PALABRA_CLAVE = "nexus"
@@ -109,6 +110,27 @@ class NexusAssistant:
             except FileNotFoundError:
                 self._say("Archivo no encontrado.")
 
+    def _get_weather(self, ciudad: str) -> None:
+        api_key = os.getenv("OPENWEATHER_API_KEY")
+        if not api_key:
+            self._say("No hay clave de API de OpenWeather configurada.")
+            return
+        try:
+            resp = requests.get(
+                "https://api.openweathermap.org/data/2.5/weather",
+                params={"q": ciudad, "appid": api_key, "lang": "es", "units": "metric"},
+                timeout=10,
+            )
+            if resp.status_code != 200:
+                self._say("No se pudo obtener el clima.")
+                return
+            data = resp.json()
+            desc = data["weather"][0]["description"]
+            temp = data["main"]["temp"]
+            self._say(f"El clima en {ciudad} es {desc} con {temp}°C.")
+        except Exception:
+            self._say("Error al consultar el clima.")
+
     def _turn_off_screen(self) -> None:
         sistema = platform.system()
         if sistema == "Windows":
@@ -154,6 +176,15 @@ class NexusAssistant:
             self._say("Modo encendido.")
         elif "crea archivo" in text or "borra archivo" in text:
             self._manage_files(text)
+        elif "clima en" in text or "tiempo en" in text:
+            if "clima en" in text:
+                ciudad = text.split("clima en", 1)[1].strip()
+            else:
+                ciudad = text.split("tiempo en", 1)[1].strip()
+            if ciudad:
+                self._get_weather(ciudad)
+            else:
+                self._say("No se reconoció la ciudad.")
         else:
             self._chatgpt(text)
 
