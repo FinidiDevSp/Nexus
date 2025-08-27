@@ -12,6 +12,7 @@ import requests
 import speech_recognition as sr
 import threading
 import time
+from datetime import datetime
 
 CONFIG_FILE = "config.json"
 MEMORY_FILE = "memory.json"
@@ -114,6 +115,12 @@ class NexusAssistant:
             os.system(
                 f"osascript -e 'set volume output volume ((output volume of (get volume settings)) {delta})'"
             )
+
+    def _tell_time(self) -> None:
+        now = datetime.now()
+        fecha = now.strftime("%d/%m/%Y")
+        hora = now.strftime("%H:%M")
+        self._say(f"Hoy es {fecha} y son las {hora}.")
 
     def _manage_files(self, text: str) -> None:
         if "crea archivo" in text:
@@ -238,6 +245,13 @@ class NexusAssistant:
                 self._remove_note(int(resto) - 1)
             else:
                 self._say("Indica el número de la nota a borrar.")
+        elif (
+            "qué hora es" in text
+            or "que hora es" in text
+            or "qué día es" in text
+            or "que dia es" in text
+        ):
+            self._tell_time()
         elif "crea archivo" in text or "borra archivo" in text:
             self._manage_files(text)
         elif "clima en" in text or "tiempo en" in text:
