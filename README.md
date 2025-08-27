@@ -56,3 +56,15 @@ Los módulos se importan automáticamente al iniciar el programa.
 - **Notion**: `crea nota <texto>` crea una nota en Notion (requiere `NOTION_TOKEN` y `NOTION_DATABASE_ID`).
 - **Google Calendar**: `reuniones de hoy` muestra los eventos del día (requiere `GOOGLE_CALENDAR_TOKEN`).
 - **Gmail**: `envia correo a <email> <mensaje>` envía un correo mediante Gmail (requiere `GMAIL_USER` y `GMAIL_PASS`).
+
+## Distribución en Windows
+
+Para generar un ejecutable de Windows se incluye el script `build_windows.bat`. Requiere tener Python y [PyInstaller](https://pyinstaller.org/) instalados.
+
+```bat
+build_windows.bat
+```
+
+El comando compila `gui/app.py` en modo gráfico (sin consola) e incorpora el icono definido en `gui/icon.ico`. El ejecutable resultante se encuentra en `dist/Nexus/Nexus.exe`.
+
+Para distribuir la aplicación copia la carpeta `dist/Nexus` a otro equipo y ejecuta `Nexus.exe`.

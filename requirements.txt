@@ -4,3 +4,4 @@ openai
 keyboard
 requests
 PySide6
+pyinstaller
