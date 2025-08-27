@@ -28,8 +28,11 @@ class NexusAssistant:
     def __init__(self) -> None:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             cfg = json.load(f)
+        self.config = cfg
         self.keyword = cfg.get("palabra_clave", "nexus")
         self.hotkey = cfg.get("hotkey", "ctrl+shift+space")
+        self.require_face = cfg.get("reconocimiento_facial", False)
+        self.silence = cfg.get("modo_silencio", False)
         self.recognizer = sr.Recognizer()
         self.tts = pyttsx3.init()
         self.active = True
@@ -56,8 +59,9 @@ class NexusAssistant:
     # Utilidades -----------------------------------------------------------------
     def _say(self, text: str) -> None:
         print(f"Nexus: {text}")
-        self.tts.say(text)
-        self.tts.runAndWait()
+        if not getattr(self, "silence", False):
+            self.tts.say(text)
+            self.tts.runAndWait()
 
     def _load_memory(self) -> list:
         if os.path.exists(MEMORY_FILE):
@@ -205,6 +209,20 @@ class NexusAssistant:
         elif sistema == "Darwin":
             os.system("pmset displaysleepnow")
 
+    def _hibernate(self) -> None:
+        sistema = platform.system()
+        if sistema == "Windows":
+            os.system("shutdown /h")
+        elif sistema == "Linux":
+            os.system("systemctl hibernate")
+        elif sistema == "Darwin":
+            os.system("pmset sleepnow")
+
+    def _confirm_face(self) -> bool:
+        self._say("Confirmación de rostro requerida.")
+        resp = input("¿Rostro reconocido? (si/no): ").strip().lower()
+        return resp == "si"
+
     def _shutdown(self) -> None:
         sistema = platform.system()
         if sistema == "Windows":
@@ -237,6 +255,10 @@ class NexusAssistant:
         self._chatgpt(text)
 
     def run(self) -> None:
+        if getattr(self, "require_face", False):
+            if not self._confirm_face():
+                self._say("No se confirmó la identidad.")
+                return
         self._say("Nexus iniciado.")
         while True:
             if not self.active:
