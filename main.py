@@ -10,6 +10,8 @@ import openai
 import pyttsx3
 import requests
 import speech_recognition as sr
+import threading
+import time
 
 CONFIG_FILE = "config.json"
 MEMORY_FILE = "memory.json"
@@ -28,6 +30,7 @@ class NexusAssistant:
         self.tts = pyttsx3.init()
         self.active = True
         self.memory = self._load_memory()
+        self.timers = []
         self.notes = self._load_notes()
 
     # Utilidades -----------------------------------------------------------------
@@ -183,6 +186,19 @@ class NexusAssistant:
         elif sistema in ("Linux", "Darwin"):
             os.system("shutdown now")
 
+    def _set_timer(self, segundos: int) -> None:
+        def tarea() -> None:
+            time.sleep(segundos)
+            self._say("Temporizador finalizado.")
+            try:
+                self.timers.remove(threading.current_thread())
+            except ValueError:
+                pass
+
+        hilo = threading.Thread(target=tarea, daemon=True)
+        self.timers.append(hilo)
+        hilo.start()
+
     # Lógica principal ------------------------------------------------------------
     def _process(self, text: str) -> None:
         if text.startswith("busca en google"):
@@ -233,6 +249,15 @@ class NexusAssistant:
                 self._get_weather(ciudad)
             else:
                 self._say("No se reconoció la ciudad.")
+        elif "temporizador de" in text and "minuto" in text:
+            try:
+                minutos = int(
+                    text.split("temporizador de", 1)[1].split("minuto")[0].strip()
+                )
+                self._say(f"Temporizador de {minutos} minutos iniciado.")
+                self._set_timer(minutos * 60)
+            except ValueError:
+                self._say("No se reconoció la duración del temporizador.")
         else:
             self._chatgpt(text)
 
