@@ -11,8 +11,7 @@ import pyttsx3
 import requests
 import speech_recognition as sr
 
-PALABRA_CLAVE = "nexus"
-HOTKEY = "ctrl+shift+space"
+CONFIG_FILE = "config.json"
 MEMORY_FILE = "memory.json"
 
 
@@ -20,6 +19,10 @@ class NexusAssistant:
     """Asistente de voz básico con activación por palabra clave u atajo."""
 
     def __init__(self) -> None:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        self.keyword = cfg.get("palabra_clave", "nexus")
+        self.hotkey = cfg.get("hotkey", "ctrl+shift+space")
         self.recognizer = sr.Recognizer()
         self.tts = pyttsx3.init()
         self.active = True
@@ -192,15 +195,15 @@ class NexusAssistant:
         self._say("Nexus iniciado.")
         while True:
             if not self.active:
-                keyboard.wait(HOTKEY)
+                keyboard.wait(self.hotkey)
                 self.active = True
-            if keyboard.is_pressed(HOTKEY):
+            if keyboard.is_pressed(self.hotkey):
                 comando = self._listen()
                 self._process(comando)
                 continue
             comando = self._listen()
-            if PALABRA_CLAVE in comando:
-                comando = comando.replace(PALABRA_CLAVE, "", 1).strip()
+            if self.keyword in comando:
+                comando = comando.replace(self.keyword, "", 1).strip()
                 if not comando:
                     comando = self._listen()
                 self._process(comando)
