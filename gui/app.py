@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QInputDialog,
     QMainWindow,
     QMenu,
     QScrollArea,
@@ -506,6 +507,18 @@ class ChatWindow(QMainWindow):
         self.add_message(text, is_user=False)
 
     def _use_suggestion(self, text: str) -> None:
+        if text == "¿Qué clima hay?":
+            ciudad, ok = QInputDialog.getText(self, "Clima", "¿En qué ciudad?")
+            if ok and ciudad.strip():
+                bubble = self.add_message(f"Clima en {ciudad}", True)
+                QTimer.singleShot(200, bubble.show_status_sent)
+                self._show_typing()
+                threading.Thread(
+                    target=self._process_text,
+                    args=(f"clima en {ciudad}",),
+                    daemon=True,
+                ).start()
+            return
         self.input.setText(text)
         self.send_message()
 
